@@ -264,7 +264,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
       </div>
       <div v-else class="np-jyo-inline" @click="onJyoPageClicked($event)">
        <jyo-lyric class="np-jyo-lyric" align="center" font-size="24" line-gap="14" gradient="true"
-                  style="--colorBefore:var(--text-color);--colorAfter:var(--text-color);--colorHighlight:var(--active-color);--colorTranslation:var(--subtext-color,var(--text-color));--jyo-active-bg:color-mix(in srgb,var(--active-color) 20%,transparent);"></jyo-lyric>
+                  style="--colorBefore:var(--text-color);--colorAfter:var(--text-color);--colorHighlight:var(--active-color);--colorTranslation:var(--subtext-color,var(--text-color));"></jyo-lyric>
        <div v-if="lyricsPageError" class="np-jyo-error">{{lyricsPageError}}</div>
       </div>
      </div>
@@ -343,7 +343,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
      </div>
      <div v-else class="np-jyo-inline" @click="onJyoPageClicked($event)">
       <jyo-lyric class="np-jyo-lyric" align="center" font-size="24" line-gap="14" gradient="true"
-                 style="--colorBefore:var(--text-color);--colorAfter:var(--text-color);--colorHighlight:var(--active-color);--colorTranslation:var(--subtext-color,var(--text-color));--jyo-active-bg:color-mix(in srgb,var(--active-color) 20%,transparent);"></jyo-lyric>
+                 style="--colorBefore:var(--text-color);--colorAfter:var(--text-color);--colorHighlight:var(--active-color);--colorTranslation:var(--subtext-color,var(--text-color));"></jyo-lyric>
       <div v-if="lyricsPageError" class="np-jyo-error">{{lyricsPageError}}</div>
      </div>
     </div>
@@ -999,23 +999,11 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                 this.fetchAlbumInfo();
             }
         },
-        styleJyoLyric(el) {
-            if (!el || !el.shadowRoot || el.shadowRoot.querySelector('style[data-mai-active]')) {
-                return;
-            }
-            let style = document.createElement('style');
-            style.setAttribute('data-mai-active', '');
-            style.textContent = '.row.active { background: var(--jyo-active-bg, rgba(127,127,127,.16)); border-radius: 8px; padding: 4px 10px; margin: 0 -10px; }';
-            el.shadowRoot.appendChild(style);
-        },
         updateJyoLyric() {
             if (!this.lyricsPage) {
                 return;
             }
             let el = document.querySelector(".np-jyo-lyric");
-            if (el) {
-                this.styleJyoLyric(el);
-            }
             if (el && el.setCurrentTime) {
                 el.setCurrentTime(this.playerStatus.current.time || 0);
             }
@@ -1087,7 +1075,6 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                 if (el && el.loadFromText) {
                     try {
                         el.loadFromText(lyrics);
-                        this.styleJyoLyric(el);
                         el.setCurrentTime(current.time || 0);
                     } catch (e) {
                         this.lyricsPageError = i18n("No lyrics");

@@ -999,11 +999,23 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                 this.fetchAlbumInfo();
             }
         },
+        styleJyoLyric(el) {
+            if (!el || !el.shadowRoot || el.shadowRoot.querySelector('style[data-mai-highlight]')) {
+                return;
+            }
+            let style = document.createElement('style');
+            style.setAttribute('data-mai-highlight', '');
+            style.textContent = '.row.active .wordFrame[part="primary"] .w, .row.active .wordFrame[part="primary"] .segline { color: var(--colorHighlight) !important; background-image: none !important; -webkit-background-clip: border-box !important; background-clip: border-box !important; }';
+            el.shadowRoot.appendChild(style);
+        },
         updateJyoLyric() {
             if (!this.lyricsPage) {
                 return;
             }
             let el = document.querySelector(".np-jyo-lyric");
+            if (el) {
+                this.styleJyoLyric(el);
+            }
             if (el && el.setCurrentTime) {
                 el.setCurrentTime(this.playerStatus.current.time || 0);
             }
@@ -1075,6 +1087,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                 if (el && el.loadFromText) {
                     try {
                         el.loadFromText(lyrics);
+                        this.styleJyoLyric(el);
                         el.setCurrentTime(current.time || 0);
                     } catch (e) {
                         this.lyricsPageError = i18n("No lyrics");

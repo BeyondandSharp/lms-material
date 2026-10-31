@@ -1,7 +1,7 @@
 #!/bin/sh
 # Release prepare hook for MaterialSkin.
-# The release Action runs this from the tagged checkout and reads absolute
-# asset paths from RELEASE_ASSETS_FILE.
+# Builds the plugin archive from the tagged tree, rendering install.xml from
+# the single VERSION source.
 set -eu
 
 : "${GITHUB_WORKSPACE:?prepare.sh: GITHUB_WORKSPACE 未设置}"
@@ -15,8 +15,6 @@ DIST="$GITHUB_WORKSPACE/dist"
 ASSET_ZIP="$GITHUB_WORKSPACE/dist/lms-material-$version.zip"
 ASSET_TAR="$GITHUB_WORKSPACE/dist/lms-material-$version.tar.gz"
 
-# zip is not installed in the default node image; use the Action installer so
-# APT_PROXY / APK_REPO / YUM_REPO and the generic proxy variables are honoured.
 if ! command -v zip >/dev/null 2>&1; then
   RELEASE_JOB_PACKAGES=zip node "$FORGEJO_DIR/scripts/run.mjs" ensure-tools
 fi
@@ -31,6 +29,16 @@ if [ -d .git ]; then
   rm -rf "$tmp"
 else
   cp -a MaterialSkin "$DIST/"
+fi
+
+if ! grep -q '<version>@VERSION@</version>' "$DIST/MaterialSkin/install.xml"; then
+  echo "[ERROR] $DIST/MaterialSkin/install.xml 缺少 @VERSION@ 占位符" >&2
+  exit 1
+fi
+sed -i "s/@VERSION@/$version/g" "$DIST/MaterialSkin/install.xml"
+if grep -q '@VERSION@' "$DIST/MaterialSkin/install.xml" 2>/dev/null; then
+  echo "[ERROR] install.xml 仍包含 @VERSION@" >&2
+  exit 1
 fi
 
 rm -f "$ASSET_ZIP" "$ASSET_TAR"

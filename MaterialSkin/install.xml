@@ -5,7 +5,7 @@
   <description>PLUGIN_MATERIAL_SKIN</description>
   <creator>Craig Drummond</creator>
   <icon>plugins/MaterialSkin/html/images/icon.svg</icon>
-  <version>DEVELOPMENT</version>
+  <version>@VERSION@</version>
   <defaultState>enabled</defaultState>
   <type>2</type>
   <homepageURL>https://github.com/CDrummond/lms-material</homepageURL>

@@ -50,46 +50,63 @@ function nowPlayingMAIScroll(ev, tab, id) {
 }
 
 function formatLyrics(s) {
-    let lines = s.split("<br/>")
-    if (lines.length>0) {
-        let timed = [];
-        let prevSeconds = 0;
-        for (let i=0, len=lines.length; i<len; ++i) {
-            let line = lines[i];
-            if (!line.startsWith("[")) {
-                if (line.trim().length>0) {
-                    return {data:s, timed:false};
-                }
-                // Skip blank lines?
-                continue;
-            }
-            let end = line.indexOf(']');
-            if (end<2) {
-                return {data:s, timed:false};
-            }
-            let time=line.substring(1, end).split(':');
-            if (time[0] < '0' || time[0] > '9') {
-                // Skip meta-data
-                continue;
-            }
-            let rest=line.substring(end+1).trim();
-            let mod = 1;
-            let seconds = 0;
-            for (let t=time.length-1; t>=0; t--) {
-                seconds+=mod*parseInt(time[t]);
-                mod*=60;
-            }
-            if (seconds<0 || seconds<prevSeconds) {
-                return {data:s, timed:false};
-            }
-            timed.push({time:seconds, text:rest});
-            prevSeconds = seconds;
+    let lines = s.split("<br/>");
+    let timed = [];
+    let offsetMs = 0;
+    let untimedText = false;
+    let re = /\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g;
+    for (let i=0, len=lines.length; i<len; ++i) {
+        let raw = (lines[i] || "").trim();
+        if (raw.length===0) {
+            continue;
         }
-        if (timed.length>0) {
-            return {data:timed, timed:true};
+        let meta = raw.match(/^\[(ar|al|ti|au|length|by|re|ve|offset):\s*(.*?)\]/i);
+        if (meta) {
+            if ('offset'==meta[1].toLowerCase()) {
+                let value = parseInt(meta[2], 10);
+                offsetMs = isNaN(value) ? 0 : value;
+            }
+            continue;
         }
+        let times = [];
+        let match;
+        re.lastIndex = 0;
+        while ((match = re.exec(raw)) !== null) {
+            let fraction = match[3] ? parseInt(match[3], 10) / (match[3].length===3 ? 1000 : match[3].length===2 ? 100 : 10) : 0;
+            times.push(parseInt(match[1], 10) * 60 + parseInt(match[2], 10) + fraction);
+        }
+        if (!times.length) {
+            // Translation/plain-only lines are tolerated and simply ignored
+            // while timed lines are available.  If nothing is timed, the
+            // whole content is returned as plain text below.
+            untimedText = true;
+            continue;
+        }
+        let text = raw.replace(re, "").replace(/<\d{1,3}:\d{1,2}(?:\.\d{1,3})?>/g, "").trim();
+        times.forEach(function (time) {
+            timed.push({time: time, text: text});
+        });
     }
-    return {data:s, timed:false};
+    if (timed.length===0) {
+        return {data:s, timed:false};
+    }
+    // More tolerant to sources returning lines slightly out of order, and
+    // to several lines sharing one timestamp (original + translation).
+    timed.sort(function (a, b) { return a.time - b.time; });
+    if (offsetMs) {
+        timed.forEach(function (line) { line.time = Math.max(0, line.time + offsetMs / 1000); });
+    }
+    for (let i=0; i<timed.length; i++) {
+        let end = MAX_LYRICS_DURATION;
+        for (let j=i+1; j<timed.length; j++) {
+            if (timed[j].time > timed[i].time) {
+                end = timed[j].time;
+                break;
+            }
+        }
+        timed[i].end = end;
+    }
+    return {data:timed, timed:true};
 }
 
 function nowplayingSetWindowTitle(view) {
@@ -658,6 +675,7 @@ function nowplayingFetchTrackInfo(view) {
                     let parsed = data.result.lyrics ? formatLyrics(replaceNewLines(data.result.lyrics)) : undefined;
                     view.info.tabs[TRACK_TAB].text=undefined==parsed || parsed.timed ? undefined : parsed.data;
                     view.info.tabs[TRACK_TAB].lines=parsed && parsed.timed ? parsed.data : undefined;
+                    view.info.tabs[TRACK_TAB].pos=-1;
                     if (view.info.tabs[TRACK_TAB].lines && view.info.tabs[TRACK_TAB].lines.length>0) {
                         // Check if times are valid - e.g. might be playing a radio stream, in which case
                         // highlight and auto scroll can be wildy off.

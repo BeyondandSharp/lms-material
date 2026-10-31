@@ -66,7 +66,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
        <div v-if="tab.image"><img :src="tab.image" loading="lazy" class="np-mai-img" @dragstart.prevent="" @dragenter.prevent=""></img></div>
        <div v-if="TRACK_TAB==index && tab.lines">
         <template v-for="(line, lindex) in tab.lines">
-         <obj :id="'np-lyrics-'+lindex" v-bind:class="{'lyrics-current-line':tab.highlight && lyricsTimesValid && playerStatus.current.time>=line.time && playerStatus.current.time<((lindex+1)<tab.lines.length ? tab.lines[lindex+1].time : MAX_LYRICS_DURATION)}">{{line.text.length<1 ? '&nbsp;' : line.text}}</obj></br/>
+         <obj :id="'np-lyrics-'+lindex" v-bind:class="{'lyrics-current-line':tab.highlight && lyricsTimesValid && playerStatus.current.time>=line.time && playerStatus.current.time<line.end}">{{line.text.length<1 ? '&nbsp;' : line.text}}</obj></br/>
         </template>
        </div>
        <div v-else-if="tab.text" v-bind:class="{'text':TRACK_TAB!=index}" v-html="tab.text"></div>
@@ -130,7 +130,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
         <div v-if="tab.image"><img :src="tab.image" loading="lazy" class="np-mai-img" @dragstart.prevent="" @dragenter.prevent=""></img></div>
         <div v-if="TRACK_TAB==index && tab.lines">
          <template v-for="(line, lindex) in tab.lines">
-          <obj :id="'np-lyrics-'+lindex" v-bind:class="{'lyrics-current-line':tab.highlight && lyricsTimesValid && playerStatus.current.time>line.time && playerStatus.current.time<((lindex+1)<tab.lines.length ? tab.lines[lindex+1].time : MAX_LYRICS_DURATION)}">{{line.text.length<1 ? '&nbsp;' : line.text}}</obj></br/>
+          <obj :id="'np-lyrics-'+lindex" v-bind:class="{'lyrics-current-line':tab.highlight && lyricsTimesValid && playerStatus.current.time>=line.time && playerStatus.current.time<line.end}">{{line.text.length<1 ? '&nbsp;' : line.text}}</obj></br/>
          </template>
         </div>
         <div v-else-if="tab.text" v-bind:class="{'text':TRACK_TAB!=index}" v-html="tab.text"></div>
@@ -210,11 +210,11 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
   <v-list two-line subheader class="np-bar-details noselect" v-else-if="playerStatus.playlist.count>0 && (desktopLayout || MBAR_NONE!=mobileBar)">
    <v-list-tile style>
     <v-list-tile-content>
-     <v-list-tile-title v-if="playerStatus.current.title">{{title}}</v-list-tile-title>
-     <v-list-tile-sub-title v-if="barInfoWithContext" v-html="barInfoWithContext"></v-list-tile-sub-title>
-     <v-list-tile-sub-title v-else-if="playerStatus.current.artistAndComposer && playerStatus.current.albumLine"><object v-html="playerStatus.current.artistAndComposer"/>{{SEPARATOR}}<object v-html="playerStatus.current.albumLine"/></v-list-tile-sub-title>
-     <v-list-tile-sub-title v-else-if="playerStatus.current.artistAndComposer" v-html="playerStatus.current.artistAndComposer"></v-list-tile-sub-title>
-     <v-list-tile-sub-title v-else-if="playerStatus.current.albumLine" v-html="playerStatus.current.albumLine"></v-list-tile-sub-title>
+     <v-list-tile-title v-if="playerStatus.current.title" class="np-lyrics-toggle" @click="toggleLyrics">{{title}}</v-list-tile-title>
+     <v-list-tile-sub-title v-if="barInfoWithContext" class="np-lyrics-toggle" @click="toggleLyrics" v-html="barInfoWithContext"></v-list-tile-sub-title>
+     <v-list-tile-sub-title v-else-if="playerStatus.current.artistAndComposer && playerStatus.current.albumLine" class="np-lyrics-toggle" @click="toggleLyrics"><object v-html="playerStatus.current.artistAndComposer"/>{{SEPARATOR}}<object v-html="playerStatus.current.albumLine"/></v-list-tile-sub-title>
+     <v-list-tile-sub-title v-else-if="playerStatus.current.artistAndComposer" class="np-lyrics-toggle" @click="toggleLyrics" v-html="playerStatus.current.artistAndComposer"></v-list-tile-sub-title>
+     <v-list-tile-sub-title v-else-if="playerStatus.current.albumLine" class="np-lyrics-toggle" @click="toggleLyrics" v-html="playerStatus.current.albumLine"></v-list-tile-sub-title>
      <v-list-tile-sub-title v-else-if="playerStatus.current.title">&#x22ef;</v-list-tile-sub-title>
     </v-list-tile-content>
     <v-list-tile-action v-if="desktopLayout">
@@ -256,10 +256,10 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
 
      <div class="np-landscape-track-info hide-scrollbar fade-both">
       <div id="np-track-info">
-       <p class="np-title-landscape np-title" v-if="playerStatus.current.title">{{title}}</p>
-       <p class="np-text-landscape subtext" v-if="artistAndComposerLine" v-html="artistAndComposerLine"></p>
+       <p class="np-title-landscape np-title np-lyrics-toggle" v-if="playerStatus.current.title" @click="toggleLyrics">{{title}}</p>
+       <p class="np-text-landscape subtext np-lyrics-toggle" v-if="artistAndComposerLine" @click="toggleLyrics" v-html="artistAndComposerLine"></p>
        <!-- <p class="np-text-landscape subtext" v-if="workLine" v-html="workLine"></p> -->
-       <p class="np-text-landscape subtext" v-if="albumLine" v-html="albumLine"></p>
+       <p class="np-text-landscape subtext np-lyrics-toggle" v-if="albumLine" @click="toggleLyrics" v-html="albumLine"></p>
        <v-rating v-if="showRatings" class="np-text-landscape subtext" v-model="rating.value" :halfIncrements="maxRating>5" hover clearable @click.native="setRating(true)" :readonly="undefined==LMS_P_RP"></v-rating>
       </div>
      </div>
@@ -330,10 +330,10 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
     </div>
     <div class="np-portrait-track-info hide-scrollbar fade-both">
      <div id="np-track-info">
-      <p class="np-title" v-if="playerStatus.current.title">{{title}}</p>
-      <p class="np-text subtext" v-if="artistAndComposerLine" v-html="artistAndComposerLine"></p>
+      <p class="np-title np-lyrics-toggle" v-if="playerStatus.current.title" @click="toggleLyrics">{{title}}</p>
+      <p class="np-text subtext np-lyrics-toggle" v-if="artistAndComposerLine" @click="toggleLyrics" v-html="artistAndComposerLine"></p>
       <!-- <p class="np-text subtext" v-if="workLine" v-html="workLine"></p> -->
-      <p class="np-text subtext" v-if="albumLine" v-html="albumLine"></p>
+      <p class="np-text subtext np-lyrics-toggle" v-if="albumLine" @click="toggleLyrics" v-html="albumLine"></p>
       <v-rating v-if="showRatings" class="np-text subtext" v-model="rating.value" :halfIncrements="maxRating>5" hover clearable @click.native="setRating(true)" :readonly="undefined==LMS_P_RP"></v-rating>
      </div>
     </div>
@@ -788,43 +788,54 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
         },
         updateLyricsPosition() {
             if (this.info.show && this.info.sync && this.info.tabs[TRACK_TAB].lines && this.lyricsTimesValid && this.info.tabs[TRACK_TAB].scroll) {
-                let pos = undefined;
-                for (let i=0, loop=this.info.tabs[TRACK_TAB].lines, len=loop.length; i<len; ++i) {
-                    if (loop[i].time<=this.playerStatus.current.time) {
+                let lines = this.info.tabs[TRACK_TAB].lines;
+                let time = this.playerStatus.current.time;
+                let pos;
+                for (let i=0, len=lines.length; i<len; ++i) {
+                    if (lines[i].time<=time) {
                         pos = i;
                     } else {
                         break;
                     }
                 }
-                if (pos!=undefined) {
-                    if (pos==this.info.tabs[TRACK_TAB].pos) {
-                        return;
-                    }
-                    let tab = document.getElementById("np-tab"+TRACK_TAB);
-                    if (tab) {
-                        if (tab.offsetHeight>600) {
-                            pos = Math.max(0, pos-7);
-                        } else if (tab.offsetHeight>300) {
-                            pos = Math.max(0, pos-4);
-                        }
-                    }
-                    if (pos==this.info.tabs[TRACK_TAB].pos) {
-                        return;
-                    }
-
-                    this.info.tabs[TRACK_TAB].pos=pos;
-                    if (0==pos && tab) {
-                        setElemScrollTop(tab, 0);
-                    } else {
-                        let adjust = tab ? tab.offsetHeight>700 ? 5 : tab.offsetHeight>350 ? 3 : 2 : 2;
-                        let elem = document.getElementById("np-lyrics-"+(pos-(adjust<pos ? adjust : 0)));
-                        if (undefined!=elem) {
-                            ensureVisible(elem, 0, {block: "center"});
-                        }
-                    }
+                if (pos==undefined) {
+                    return;
+                }
+                let first = pos;
+                while (first>0 && lines[first-1].time===lines[pos].time) {
+                    first--;
+                }
+                let tab = document.getElementById("np-tab"+TRACK_TAB);
+                if (!tab) {
+                    return;
+                }
+                if (first===this.info.tabs[TRACK_TAB].pos) {
+                    return;
+                }
+                let last = first;
+                while (last+1<lines.length && lines[last+1].time===lines[first].time) {
+                    last++;
+                }
+                let firstElem = document.getElementById("np-lyrics-"+first);
+                let lastElem = document.getElementById("np-lyrics-"+last);
+                this.info.tabs[TRACK_TAB].pos=first;
+                if (!firstElem) {
+                    return;
+                }
+                let tabRect = tab.getBoundingClientRect();
+                let firstRect = firstElem.getBoundingClientRect();
+                let lastRect = (lastElem || firstElem).getBoundingClientRect();
+                let groupTop = firstRect.top - tabRect.top + tab.scrollTop;
+                let groupBottom = lastRect.bottom - tabRect.top + tab.scrollTop;
+                let target = groupTop + (groupBottom - groupTop) / 2 - tab.clientHeight / 2;
+                if (tab.scrollTo) {
+                    tab.scrollTo({top: Math.max(0, target), behavior: "smooth"});
+                } else {
+                    tab.scrollTop = Math.max(0, target);
                 }
             }
         },
+
         sliderChanged(e, isTouch) {
             if (this.playerStatus.current.canseek && this.playerStatus.current.duration>3) {
                 const rect = document.getElementById("pos-slider").getBoundingClientRect();
@@ -971,6 +982,18 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                 this.fetchArtistInfo();
             } else {
                 this.fetchAlbumInfo();
+            }
+        },
+        toggleLyrics() {
+            if (!this.info.show) {
+                this.info.show = true;
+                this.info.tab = TRACK_TAB;
+                this.fetchTrackInfo();
+            } else if (this.info.tab !== TRACK_TAB) {
+                this.info.tab = TRACK_TAB;
+                this.fetchTrackInfo();
+            } else {
+                this.info.show = false;
             }
         },
         close() {

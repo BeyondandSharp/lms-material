@@ -1960,6 +1960,7 @@ div.v-subheader {
 
 .np-info-lyrics {
  text-align:center;
+ scroll-behavior:smooth;
 }
 
 .np-info-title {
@@ -4869,3 +4870,4 @@ div.v-subheader {
 .msk-is-non-touch .browse-search-btn:hover {
  filter:saturate(150%);
 }
+.np-lyrics-toggle { cursor:pointer; }

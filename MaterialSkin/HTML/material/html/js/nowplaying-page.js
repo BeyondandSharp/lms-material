@@ -262,7 +262,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
        <p class="np-text-landscape subtext" v-if="albumLine" v-html="albumLine"></p>
        <v-rating v-if="showRatings" class="np-text-landscape" v-model="rating.value" :halfIncrements="maxRating>5" hover clearable @click.native="setRating(true)" :readonly="undefined==LMS_P_RP"></v-rating>
       </div>
-      <div v-else class="np-jyo-inline" @click="onJyoPageClicked($event)">
+      <div v-else class="np-jyo-inline" @click="onJyoPageClicked($event)" @pointerdown.capture="jyoDragStart($event)">
        <jyo-lyric class="np-jyo-lyric" align="center" font-size="24" line-gap="14" gradient="true"
                   style="--colorBefore:var(--text-color);--colorAfter:var(--text-color);--colorHighlight:var(--primary-color);--colorTranslation:var(--subtext-color,var(--text-color));"></jyo-lyric>
        <div v-if="lyricsPageError" class="np-jyo-error">{{lyricsPageError}}</div>
@@ -341,7 +341,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
       <p class="np-text subtext" v-if="albumLine" v-html="albumLine"></p>
       <v-rating v-if="showRatings" class="np-text subtext" v-model="rating.value" :halfIncrements="maxRating>5" hover clearable @click.native="setRating(true)" :readonly="undefined==LMS_P_RP"></v-rating>
      </div>
-     <div v-else class="np-jyo-inline" @click="onJyoPageClicked($event)">
+     <div v-else class="np-jyo-inline" @click="onJyoPageClicked($event)" @pointerdown.capture="jyoDragStart($event)">
       <jyo-lyric class="np-jyo-lyric" align="center" font-size="24" line-gap="14" gradient="true"
                  style="--colorBefore:var(--text-color);--colorAfter:var(--text-color);--colorHighlight:var(--primary-color);--colorTranslation:var(--subtext-color,var(--text-color));"></jyo-lyric>
       <div v-if="lyricsPageError" class="np-jyo-error">{{lyricsPageError}}</div>
@@ -464,7 +464,11 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                  lyricsPageReqId:0,
                  pointerStartX:undefined,
                  pointerStartY:undefined,
-                 pointerMoved:false
+                 pointerMoved:false,
+                 jyoDragData:null,
+                 jyoDragBoundMove:null,
+                 jyoDragBoundEnd:null,
+                 lyricsPageTimes:[]
                 };
     },
     mounted() {
@@ -1002,6 +1006,95 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                 this.fetchAlbumInfo();
             }
         },
+        parseJyoTimes(text) {
+            let times = [];
+            let seen = Object.create(null);
+            let re = /\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g;
+            (text || '').split(/\r?\n/).forEach(line => {
+                let m;
+                re.lastIndex = 0;
+                while ((m = re.exec(line)) !== null) {
+                    let fraction = m[3] ? parseInt(m[3], 10) / (m[3].length===3 ? 1000 : m[3].length===2 ? 100 : 10) : 0;
+                    let t = parseInt(m[1], 10) * 60 + parseInt(m[2], 10) + fraction;
+                    if (!seen[t]) {
+                        seen[t] = true;
+                        times.push(t);
+                    }
+                }
+            });
+            times.sort((a, b) => a - b);
+            return times;
+        },
+        jyoDragStart(event) {
+            if (!this.lyricsPage || !event || event.button!==0) {
+                return;
+            }
+            let target = event.target;
+            if (target && target.closest && (target.closest('a,button') || !target.closest('.np-jyo-lyric'))) {
+                return;
+            }
+            this.jyoDragData = { startY: event.clientY };
+            this.pointerMoved = false;
+            if (!this.jyoDragBoundMove) {
+                this.jyoDragBoundMove = (e) => this.jyoDragMove(e);
+                this.jyoDragBoundEnd = (e) => this.jyoDragEnd(e);
+            }
+            document.addEventListener('pointermove', this.jyoDragBoundMove, {passive:true});
+            document.addEventListener('pointerup', this.jyoDragBoundEnd);
+            document.addEventListener('pointercancel', this.jyoDragBoundEnd);
+            // jyo-lyric's own drag implementation uses mouse events, so keep
+            // a mouse fallback for environments without pointer capture.
+            window.addEventListener('mousemove', this.jyoDragBoundMove);
+            window.addEventListener('mouseup', this.jyoDragBoundEnd);
+        },
+        jyoDragMove(event) {
+            if (!this.jyoDragData) {
+                return;
+            }
+            if (Math.abs(event.clientY - this.jyoDragData.startY) > 8) {
+                this.pointerMoved = true;
+                this.jyoDragData.moved = true;
+            }
+        },
+        jyoDragEnd() {
+            document.removeEventListener('pointermove', this.jyoDragBoundMove);
+            document.removeEventListener('pointerup', this.jyoDragBoundEnd);
+            document.removeEventListener('pointercancel', this.jyoDragBoundEnd);
+            window.removeEventListener('mousemove', this.jyoDragBoundMove);
+            window.removeEventListener('mouseup', this.jyoDragBoundEnd);
+            let moved = this.jyoDragData && this.jyoDragData.moved;
+            this.jyoDragData = null;
+            if (moved) {
+                // Let the component finish its internal scroll before
+                // selecting the line nearest the center.
+                setTimeout(() => this.seekJyoCenterLine(), 20);
+            }
+        },
+        seekJyoCenterLine() {
+            let el = document.querySelector('.np-jyo-lyric');
+            if (!el || !el.shadowRoot || !this.lyricsPageTimes.length) {
+                return;
+            }
+            let rows = el.shadowRoot.querySelectorAll('.row[data-line]');
+            if (!rows.length) {
+                return;
+            }
+            let rect = el.getBoundingClientRect();
+            let center = rect.top + rect.height / 2;
+            let best = -1;
+            let bestDist = Infinity;
+            rows.forEach(row => {
+                let r = row.getBoundingClientRect();
+                let dist = Math.abs((r.top + r.bottom) / 2 - center);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = parseInt(row.getAttribute('data-line'), 10);
+                }
+            });
+            if (best >= 0 && this.lyricsPageTimes[best] !== undefined) {
+                this.doAction(['time', Math.floor(this.lyricsPageTimes[best])]);
+            }
+        },
         styleJyoLyric(el) {
             if (!el || !el.shadowRoot || el.shadowRoot.querySelector('style[data-mai-highlight]')) {
                 return;
@@ -1091,6 +1184,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                     return;
                 }
                 lyrics = lyrics.replace(/\\n/g, "\n");
+                this.lyricsPageTimes = this.parseJyoTimes(lyrics);
                 if (el && el.loadFromText) {
                     try {
                         el.loadFromText(lyrics);

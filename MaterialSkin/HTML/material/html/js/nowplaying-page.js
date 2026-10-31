@@ -30,7 +30,7 @@ var currentPlayingTrackPosition = 0;
 
 var lmsNowPlaying = Vue.component("lms-now-playing", {
     template: `
-<div v-bind:class="{'np-mob-nonav':!desktopLayout && MBAR_REP_NAV==mobileBar}">
+<div v-bind:class="{'np-mob-nonav':!desktopLayout && MBAR_REP_NAV==mobileBar}" @click="npPageClicked($event)">
  <div v-show="(!desktopLayout && page=='now-playing') || (desktopLayout && (info.show || largeView))" class="np-bgnd">
   <div v-bind:style="{'background-image':'url('+currentBgndUrl+')'}" v-bind:class="[(info.show ? drawInfoBgndImage||drawInfoBackdrop : drawBgndImage||drawBackdrop) ? 'np-bgnd-cover':'np-bgnd-cover-none', (info.show ? drawInfoBackdrop : drawBackdrop) ? 'np-backdrop-blur':'']"></div>
  </div>
@@ -210,11 +210,11 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
   <v-list two-line subheader class="np-bar-details noselect" v-else-if="playerStatus.playlist.count>0 && (desktopLayout || MBAR_NONE!=mobileBar)">
    <v-list-tile style>
     <v-list-tile-content>
-     <v-list-tile-title v-if="playerStatus.current.title" class="np-lyrics-toggle" @click="toggleLyrics">{{title}}</v-list-tile-title>
-     <v-list-tile-sub-title v-if="barInfoWithContext" class="np-lyrics-toggle" @click="toggleLyrics" v-html="barInfoWithContext"></v-list-tile-sub-title>
-     <v-list-tile-sub-title v-else-if="playerStatus.current.artistAndComposer && playerStatus.current.albumLine" class="np-lyrics-toggle" @click="toggleLyrics"><object v-html="playerStatus.current.artistAndComposer"/>{{SEPARATOR}}<object v-html="playerStatus.current.albumLine"/></v-list-tile-sub-title>
-     <v-list-tile-sub-title v-else-if="playerStatus.current.artistAndComposer" class="np-lyrics-toggle" @click="toggleLyrics" v-html="playerStatus.current.artistAndComposer"></v-list-tile-sub-title>
-     <v-list-tile-sub-title v-else-if="playerStatus.current.albumLine" class="np-lyrics-toggle" @click="toggleLyrics" v-html="playerStatus.current.albumLine"></v-list-tile-sub-title>
+     <v-list-tile-title v-if="playerStatus.current.title">{{title}}</v-list-tile-title>
+     <v-list-tile-sub-title v-if="barInfoWithContext" v-html="barInfoWithContext"></v-list-tile-sub-title>
+     <v-list-tile-sub-title v-else-if="playerStatus.current.artistAndComposer && playerStatus.current.albumLine"><object v-html="playerStatus.current.artistAndComposer"/>{{SEPARATOR}}<object v-html="playerStatus.current.albumLine"/></v-list-tile-sub-title>
+     <v-list-tile-sub-title v-else-if="playerStatus.current.artistAndComposer" v-html="playerStatus.current.artistAndComposer"></v-list-tile-sub-title>
+     <v-list-tile-sub-title v-else-if="playerStatus.current.albumLine" v-html="playerStatus.current.albumLine"></v-list-tile-sub-title>
      <v-list-tile-sub-title v-else-if="playerStatus.current.title">&#x22ef;</v-list-tile-sub-title>
     </v-list-tile-content>
     <v-list-tile-action v-if="desktopLayout">
@@ -256,10 +256,10 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
 
      <div class="np-landscape-track-info hide-scrollbar fade-both">
       <div id="np-track-info">
-       <p class="np-title-landscape np-title np-lyrics-toggle" v-if="playerStatus.current.title" @click="toggleLyrics">{{title}}</p>
-       <p class="np-text-landscape subtext np-lyrics-toggle" v-if="artistAndComposerLine" @click="toggleLyrics" v-html="artistAndComposerLine"></p>
+       <p class="np-title-landscape np-title" v-if="playerStatus.current.title">{{title}}</p>
+       <p class="np-text-landscape subtext" v-if="artistAndComposerLine" v-html="artistAndComposerLine"></p>
        <!-- <p class="np-text-landscape subtext" v-if="workLine" v-html="workLine"></p> -->
-       <p class="np-text-landscape subtext np-lyrics-toggle" v-if="albumLine" @click="toggleLyrics" v-html="albumLine"></p>
+       <p class="np-text-landscape subtext" v-if="albumLine" v-html="albumLine"></p>
        <v-rating v-if="showRatings" class="np-text-landscape subtext" v-model="rating.value" :halfIncrements="maxRating>5" hover clearable @click.native="setRating(true)" :readonly="undefined==LMS_P_RP"></v-rating>
       </div>
      </div>
@@ -330,10 +330,10 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
     </div>
     <div class="np-portrait-track-info hide-scrollbar fade-both">
      <div id="np-track-info">
-      <p class="np-title np-lyrics-toggle" v-if="playerStatus.current.title" @click="toggleLyrics">{{title}}</p>
-      <p class="np-text subtext np-lyrics-toggle" v-if="artistAndComposerLine" @click="toggleLyrics" v-html="artistAndComposerLine"></p>
+      <p class="np-title" v-if="playerStatus.current.title">{{title}}</p>
+      <p class="np-text subtext" v-if="artistAndComposerLine" v-html="artistAndComposerLine"></p>
       <!-- <p class="np-text subtext" v-if="workLine" v-html="workLine"></p> -->
-      <p class="np-text subtext np-lyrics-toggle" v-if="albumLine" @click="toggleLyrics" v-html="albumLine"></p>
+      <p class="np-text subtext" v-if="albumLine" v-html="albumLine"></p>
       <v-rating v-if="showRatings" class="np-text subtext" v-model="rating.value" :halfIncrements="maxRating>5" hover clearable @click.native="setRating(true)" :readonly="undefined==LMS_P_RP"></v-rating>
      </div>
     </div>
@@ -983,6 +983,18 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
             } else {
                 this.fetchAlbumInfo();
             }
+        },
+        npPageClicked(event) {
+            let target = event && event.target;
+            if (!target || !target.closest) {
+                return;
+            }
+            // Ignore controls, links and the track metadata itself.  The
+            // remaining page/background area toggles the lyrics view.
+            if (target.closest('button,a,input,select,textarea,.v-btn,.v-slider,.np-bar,.np-title,.np-text,.np-image,.np-cover,.np-menu-fab,.v-tabs,.v-card,.lms-list,.np-pos,.np-duration,.lms-progressbar,.np-progressbar')) {
+                return;
+            }
+            this.toggleLyrics();
         },
         toggleLyrics() {
             if (!this.info.show) {

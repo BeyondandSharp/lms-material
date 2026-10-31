@@ -6,6 +6,7 @@
  */
 'use strict';
 
+Vue.config.ignoredElements = ['jyo-lyric'];
 Vue.use(VueLazyload, {error:DEFAULT_COVER});
 
 Vue.filter("svgIcon", (name, dark, inColoredToolbar) => {

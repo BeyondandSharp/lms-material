@@ -34,6 +34,12 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
  <div v-show="(!desktopLayout && page=='now-playing') || (desktopLayout && (info.show || largeView))" class="np-bgnd">
   <div v-bind:style="{'background-image':'url('+currentBgndUrl+')'}" v-bind:class="[(info.show ? drawInfoBgndImage||drawInfoBackdrop : drawBgndImage||drawBackdrop) ? 'np-bgnd-cover':'np-bgnd-cover-none', (info.show ? drawInfoBackdrop : drawBackdrop) ? 'np-backdrop-blur':'']"></div>
  </div>
+ <div v-if="lyricsPage" class="np-jyo-page" @click="onJyoPageClicked($event)">
+  <v-btn fab small flat class="np-jyo-close" @click="closeJyoLyrics" :title="'Close'"><v-icon>close</v-icon></v-btn>
+  <jyo-lyric id="np-jyo-lyric" align="center" font-size="28" line-gap="18" gradient="true"
+             style="display:block;width:100%;height:100%;--colorBefore:var(--text-color);--colorAfter:var(--text-color);--colorHighlight:var(--active-color);--colorTranslation:var(--subtext-color,var(--text-color));"></jyo-lyric>
+  <div v-if="lyricsPageError" class="np-jyo-error">{{lyricsPageError}}</div>
+ </div>
  <v-tooltip top :position-x="timeTooltip.x" :position-y="timeTooltip.y" v-model="timeTooltip.show">{{timeTooltip.text}}</v-tooltip>
  <v-menu v-model="menu.show" :position-x="menu.x" :position-y="menu.y" absolute offset-y>
   <v-list>
@@ -447,7 +453,11 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                  showOverlay:false,
                  showOverlayTimer:undefined,
                  currentBgndUrl:"",
-                 showBgnd:true
+                 showBgnd:true,
+                 lyricsPage:false,
+                 lyricsPageError:undefined,
+                 lyricsPageTrack:'',
+                 lyricsPageReqId:0
                 };
     },
     mounted() {
@@ -785,6 +795,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                 }
             }
             this.updateLyricsPosition();
+            this.updateJyoLyric();
         },
         updateLyricsPosition() {
             if (this.info.show && this.info.sync && this.info.tabs[TRACK_TAB].lines && this.lyricsTimesValid && this.info.tabs[TRACK_TAB].scroll) {
@@ -984,6 +995,93 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                 this.fetchAlbumInfo();
             }
         },
+        updateJyoLyric() {
+            if (!this.lyricsPage) {
+                return;
+            }
+            let el = document.getElementById("np-jyo-lyric");
+            if (el && el.setCurrentTime) {
+                el.setCurrentTime(this.playerStatus.current.time || 0);
+            }
+            let current = this.playerStatus.current;
+            let key = (current && current.track_id ? current.track_id : '') + '|' + (current && current.url ? current.url : '') + '|' + (current && current.title ? current.title : '');
+            if (key !== this.lyricsPageTrack) {
+                this.lyricsPageTrack = key;
+                this.loadJyoLyrics();
+            }
+        },
+        closeJyoLyrics() {
+            this.lyricsPage = false;
+        },
+        onJyoPageClicked(event) {
+            if (event && event.stopPropagation) {
+                event.stopPropagation();
+            }
+            let target = event && event.target;
+            if (target && target.closest && target.closest('button,.np-jyo-close')) {
+                return;
+            }
+            this.closeJyoLyrics();
+        },
+        toggleLyricsPage() {
+            if (this.lyricsPage) {
+                this.closeJyoLyrics();
+            } else {
+                this.lyricsPage = true;
+                this.$nextTick(() => this.loadJyoLyrics());
+            }
+        },
+        loadJyoLyrics() {
+            if (!this.lyricsPage || !this.playerId()) {
+                return;
+            }
+            if (!customElements.get('jyo-lyric')) {
+                customElements.whenDefined('jyo-lyric').then(() => this.loadJyoLyrics());
+                return;
+            }
+            let current = this.playerStatus.current || {};
+            let reqId = ++this.lyricsPageReqId;
+            let cmd = ["musicartistinfo", "lyrics", "html:1", "timestamps:1"];
+            if (this.infoTrack.track_id!=undefined && !(""+this.infoTrack.track_id).startsWith("-")) {
+                cmd.push("track_id:"+this.infoTrack.track_id);
+            } else if (current.url!=undefined) {
+                cmd.push("url:"+current.url);
+                if (current.title!=undefined) { cmd.push("title:"+revertHtmlBrackets(current.title)); }
+                if (current.artist!=undefined) { cmd.push("artist:"+revertHtmlBrackets(current.artist)); }
+            } else if (current.title!=undefined) {
+                cmd.push("title:"+revertHtmlBrackets(current.title));
+                if (current.artist!=undefined) { cmd.push("artist:"+revertHtmlBrackets(current.artist)); }
+            } else {
+                this.lyricsPageError = i18n("No lyrics");
+                return;
+            }
+            this.lyricsPageError = undefined;
+            lmsCommand(this.playerId(), cmd, reqId).then(({data}) => {
+                if (reqId!==this.lyricsPageReqId || !this.lyricsPage) {
+                    return;
+                }
+                let lyrics = data && data.result && data.result.lyrics;
+                let el = document.getElementById("np-jyo-lyric");
+                if (!lyrics) {
+                    this.lyricsPageError = data && data.result && data.result.error ? data.result.error : i18n("No lyrics");
+                    if (el && el.clear) { el.clear(); }
+                    return;
+                }
+                lyrics = lyrics.replace(/\\n/g, "\n");
+                if (el && el.loadFromText) {
+                    try {
+                        el.loadFromText(lyrics);
+                        el.setCurrentTime(current.time || 0);
+                    } catch (e) {
+                        this.lyricsPageError = i18n("No lyrics");
+                    }
+                }
+            }).catch(() => {
+                if (reqId===this.lyricsPageReqId) {
+                    this.lyricsPageError = i18n("No lyrics");
+                }
+            });
+        },
         npPageClicked(event) {
             let target = event && event.target;
             if (!target || !target.closest) {
@@ -994,19 +1092,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
             if (target.closest('button,a,input,select,textarea,.v-btn,.v-slider,.np-bar,.np-title,.np-text,.np-image,.np-cover,.np-menu-fab,.v-tabs,.v-card,.lms-list,.np-pos,.np-duration,.lms-progressbar,.np-progressbar')) {
                 return;
             }
-            this.toggleLyrics();
-        },
-        toggleLyrics() {
-            if (!this.info.show) {
-                this.info.show = true;
-                this.info.tab = TRACK_TAB;
-                this.fetchTrackInfo();
-            } else if (this.info.tab !== TRACK_TAB) {
-                this.info.tab = TRACK_TAB;
-                this.fetchTrackInfo();
-            } else {
-                this.info.show = false;
-            }
+            this.toggleLyricsPage();
         },
         close() {
             if (this.$store.state.desktopLayout) {

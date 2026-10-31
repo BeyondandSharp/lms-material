@@ -4870,3 +4870,34 @@ div.v-subheader {
 .msk-is-non-touch .browse-search-btn:hover {
  filter:saturate(150%);
 }
+
+.np-jyo-page {
+ position:fixed;
+ inset:0;
+ z-index:1200;
+ box-sizing:border-box;
+ padding:48px 24px 24px;
+ background-color:var(--background-color);
+ color:var(--text-color);
+}
+.np-jyo-page jyo-lyric {
+ display:block;
+ width:100%;
+ height:100%;
+}
+.np-jyo-close {
+ position:absolute !important;
+ top:8px;
+ right:8px;
+ z-index:1201;
+}
+.np-jyo-error {
+ position:absolute;
+ left:0;
+ right:0;
+ top:50%;
+ transform:translateY(-50%);
+ text-align:center;
+ color:var(--text-color);
+ opacity:.7;
+}

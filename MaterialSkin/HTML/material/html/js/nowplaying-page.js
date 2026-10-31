@@ -30,7 +30,7 @@ var currentPlayingTrackPosition = 0;
 
 var lmsNowPlaying = Vue.component("lms-now-playing", {
     template: `
-<div v-bind:class="{'np-mob-nonav':!desktopLayout && MBAR_REP_NAV==mobileBar}" @click="npPageClicked($event)">
+<div v-bind:class="{'np-mob-nonav':!desktopLayout && MBAR_REP_NAV==mobileBar}">
  <div v-show="(!desktopLayout && page=='now-playing') || (desktopLayout && (info.show || largeView))" class="np-bgnd">
   <div v-bind:style="{'background-image':'url('+currentBgndUrl+')'}" v-bind:class="[(info.show ? drawInfoBgndImage||drawInfoBackdrop : drawBgndImage||drawBackdrop) ? 'np-bgnd-cover':'np-bgnd-cover-none', (info.show ? drawInfoBackdrop : drawBackdrop) ? 'np-backdrop-blur':'']"></div>
  </div>
@@ -254,7 +254,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
     </div>
     <div class="np-details-landscape" v-bind:class="{'np-details-landscape-wide': landscape && wide>1}">
 
-     <div class="np-landscape-track-info hide-scrollbar fade-both">
+     <div class="np-landscape-track-info hide-scrollbar fade-both" @click="npTrackInfoClicked($event)" @pointerdown.capture="npTrackInfoPointerDown($event)" @pointermove.capture="npTrackInfoPointerMove($event)">
       <div id="np-track-info" v-if="!lyricsPage">
        <p class="np-title-landscape np-title" v-if="playerStatus.current.title">{{title}}</p>
        <p class="np-text-landscape subtext" v-if="artistAndComposerLine" v-html="artistAndComposerLine"></p>
@@ -333,7 +333,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
       </tr>
      </table>
     </div>
-    <div class="np-portrait-track-info hide-scrollbar fade-both">
+    <div class="np-portrait-track-info hide-scrollbar fade-both" @click="npTrackInfoClicked($event)" @pointerdown.capture="npTrackInfoPointerDown($event)" @pointermove.capture="npTrackInfoPointerMove($event)">
      <div id="np-track-info" v-if="!lyricsPage">
       <p class="np-title" v-if="playerStatus.current.title">{{title}}</p>
       <p class="np-text subtext" v-if="artistAndComposerLine" v-html="artistAndComposerLine"></p>
@@ -461,7 +461,10 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                  lyricsPage:false,
                  lyricsPageError:undefined,
                  lyricsPageTrack:'',
-                 lyricsPageReqId:0
+                 lyricsPageReqId:0,
+                 pointerStartX:undefined,
+                 pointerStartY:undefined,
+                 pointerMoved:false
                 };
     },
     mounted() {
@@ -1034,7 +1037,11 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                 event.stopPropagation();
             }
             let target = event && event.target;
-            if (target && target.closest && target.closest('button,.np-jyo-close')) {
+            if (target && target.closest && target.closest('a,button,input,select,textarea,.v-btn,.v-rating,.link-item')) {
+                return;
+            }
+            if (this.pointerMoved) {
+                this.pointerMoved = false;
                 return;
             }
             this.closeJyoLyrics();
@@ -1099,14 +1106,29 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                 }
             });
         },
-        npPageClicked(event) {
+        npTrackInfoPointerDown(event) {
+            this.pointerStartX = event.clientX;
+            this.pointerStartY = event.clientY;
+            this.pointerMoved = false;
+        },
+        npTrackInfoPointerMove(event) {
+            if (undefined==this.pointerStartX || undefined==this.pointerStartY) {
+                return;
+            }
+            if (Math.abs(event.clientX-this.pointerStartX)>8 || Math.abs(event.clientY-this.pointerStartY)>8) {
+                this.pointerMoved = true;
+            }
+        },
+        npTrackInfoClicked(event) {
             let target = event && event.target;
             if (!target || !target.closest) {
                 return;
             }
-            // Ignore controls, links and the track metadata itself.  The
-            // remaining page/background area toggles the lyrics view.
-            if (target.closest('button,a,input,select,textarea,.v-btn,.v-slider,.np-bar,.np-title,.np-text,.np-image,.np-cover,.np-menu-fab,.v-tabs,.v-card,.lms-list,.np-pos,.np-duration,.lms-progressbar,.np-progressbar')) {
+            if (target.closest('a,button,input,select,textarea,.v-btn,.v-rating,.link-item')) {
+                return;
+            }
+            if (this.pointerMoved) {
+                this.pointerMoved = false;
                 return;
             }
             this.toggleLyricsPage();

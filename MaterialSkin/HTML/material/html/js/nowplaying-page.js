@@ -34,12 +34,6 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
  <div v-show="(!desktopLayout && page=='now-playing') || (desktopLayout && (info.show || largeView))" class="np-bgnd">
   <div v-bind:style="{'background-image':'url('+currentBgndUrl+')'}" v-bind:class="[(info.show ? drawInfoBgndImage||drawInfoBackdrop : drawBgndImage||drawBackdrop) ? 'np-bgnd-cover':'np-bgnd-cover-none', (info.show ? drawInfoBackdrop : drawBackdrop) ? 'np-backdrop-blur':'']"></div>
  </div>
- <div v-if="lyricsPage" class="np-jyo-page" @click="onJyoPageClicked($event)">
-  <v-btn fab small flat class="np-jyo-close" @click="closeJyoLyrics" :title="'Close'"><v-icon>close</v-icon></v-btn>
-  <jyo-lyric id="np-jyo-lyric" align="center" font-size="28" line-gap="18" gradient="true"
-             style="display:block;width:100%;height:100%;--colorBefore:var(--text-color);--colorAfter:var(--text-color);--colorHighlight:var(--active-color);--colorTranslation:var(--subtext-color,var(--text-color));"></jyo-lyric>
-  <div v-if="lyricsPageError" class="np-jyo-error">{{lyricsPageError}}</div>
- </div>
  <v-tooltip top :position-x="timeTooltip.x" :position-y="timeTooltip.y" v-model="timeTooltip.show">{{timeTooltip.text}}</v-tooltip>
  <v-menu v-model="menu.show" :position-x="menu.x" :position-y="menu.y" absolute offset-y>
   <v-list>
@@ -261,12 +255,17 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
     <div class="np-details-landscape" v-bind:class="{'np-details-landscape-wide': landscape && wide>1}">
 
      <div class="np-landscape-track-info hide-scrollbar fade-both">
-      <div id="np-track-info">
+      <div id="np-track-info" v-if="!lyricsPage">
        <p class="np-title-landscape np-title" v-if="playerStatus.current.title">{{title}}</p>
        <p class="np-text-landscape subtext" v-if="artistAndComposerLine" v-html="artistAndComposerLine"></p>
        <!-- <p class="np-text-landscape subtext" v-if="workLine" v-html="workLine"></p> -->
        <p class="np-text-landscape subtext" v-if="albumLine" v-html="albumLine"></p>
-       <v-rating v-if="showRatings" class="np-text-landscape subtext" v-model="rating.value" :halfIncrements="maxRating>5" hover clearable @click.native="setRating(true)" :readonly="undefined==LMS_P_RP"></v-rating>
+       <v-rating v-if="showRatings" class="np-text-landscape" v-model="rating.value" :halfIncrements="maxRating>5" hover clearable @click.native="setRating(true)" :readonly="undefined==LMS_P_RP"></v-rating>
+      </div>
+      <div v-else class="np-jyo-inline" @click="onJyoPageClicked($event)">
+       <jyo-lyric class="np-jyo-lyric" align="center" font-size="24" line-gap="14" gradient="true"
+                  style="--colorBefore:var(--text-color);--colorAfter:var(--text-color);--colorHighlight:var(--active-color);--colorTranslation:var(--subtext-color,var(--text-color));"></jyo-lyric>
+       <div v-if="lyricsPageError" class="np-jyo-error">{{lyricsPageError}}</div>
       </div>
      </div>
      <div v-if="wide>1">
@@ -335,12 +334,17 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
      </table>
     </div>
     <div class="np-portrait-track-info hide-scrollbar fade-both">
-     <div id="np-track-info">
+     <div id="np-track-info" v-if="!lyricsPage">
       <p class="np-title" v-if="playerStatus.current.title">{{title}}</p>
       <p class="np-text subtext" v-if="artistAndComposerLine" v-html="artistAndComposerLine"></p>
       <!-- <p class="np-text subtext" v-if="workLine" v-html="workLine"></p> -->
       <p class="np-text subtext" v-if="albumLine" v-html="albumLine"></p>
       <v-rating v-if="showRatings" class="np-text subtext" v-model="rating.value" :halfIncrements="maxRating>5" hover clearable @click.native="setRating(true)" :readonly="undefined==LMS_P_RP"></v-rating>
+     </div>
+     <div v-else class="np-jyo-inline" @click="onJyoPageClicked($event)">
+      <jyo-lyric class="np-jyo-lyric" align="center" font-size="24" line-gap="14" gradient="true"
+                 style="--colorBefore:var(--text-color);--colorAfter:var(--text-color);--colorHighlight:var(--active-color);--colorTranslation:var(--subtext-color,var(--text-color));"></jyo-lyric>
+      <div v-if="lyricsPageError" class="np-jyo-error">{{lyricsPageError}}</div>
      </div>
     </div>
    </div>
@@ -999,7 +1003,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
             if (!this.lyricsPage) {
                 return;
             }
-            let el = document.getElementById("np-jyo-lyric");
+            let el = document.querySelector(".np-jyo-lyric");
             if (el && el.setCurrentTime) {
                 el.setCurrentTime(this.playerStatus.current.time || 0);
             }
@@ -1061,7 +1065,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                     return;
                 }
                 let lyrics = data && data.result && data.result.lyrics;
-                let el = document.getElementById("np-jyo-lyric");
+                let el = document.querySelector(".np-jyo-lyric");
                 if (!lyrics) {
                     this.lyricsPageError = data && data.result && data.result.error ? data.result.error : i18n("No lyrics");
                     if (el && el.clear) { el.clear(); }
@@ -1095,6 +1099,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
             this.toggleLyricsPage();
         },
         close() {
+            this.lyricsPage=false;
             if (this.$store.state.desktopLayout) {
                 this.info.show=false;
                 this.largeView=false;
@@ -1514,6 +1519,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
             return this.$store.state.player ? this.$store.state.player.id : ""
         },
         changePage() {
+            this.lyricsPage=false;
             this.$store.commit('setPage', this.nextPage);
             this.info.show = false;
         }

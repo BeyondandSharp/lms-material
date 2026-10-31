@@ -264,7 +264,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
       </div>
       <div v-else class="np-jyo-inline" @click="onJyoPageClicked($event)">
        <jyo-lyric class="np-jyo-lyric" align="center" font-size="24" line-gap="14" gradient="true"
-                  style="--colorBefore:var(--text-color);--colorAfter:var(--text-color);--colorHighlight:var(--active-color);--colorTranslation:var(--subtext-color,var(--text-color));"></jyo-lyric>
+                  style="--colorBefore:var(--text-color);--colorAfter:var(--text-color);--colorHighlight:var(--primary-color);--colorTranslation:var(--subtext-color,var(--text-color));"></jyo-lyric>
        <div v-if="lyricsPageError" class="np-jyo-error">{{lyricsPageError}}</div>
       </div>
      </div>
@@ -343,7 +343,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
      </div>
      <div v-else class="np-jyo-inline" @click="onJyoPageClicked($event)">
       <jyo-lyric class="np-jyo-lyric" align="center" font-size="24" line-gap="14" gradient="true"
-                 style="--colorBefore:var(--text-color);--colorAfter:var(--text-color);--colorHighlight:var(--active-color);--colorTranslation:var(--subtext-color,var(--text-color));"></jyo-lyric>
+                 style="--colorBefore:var(--text-color);--colorAfter:var(--text-color);--colorHighlight:var(--primary-color);--colorTranslation:var(--subtext-color,var(--text-color));"></jyo-lyric>
       <div v-if="lyricsPageError" class="np-jyo-error">{{lyricsPageError}}</div>
      </div>
     </div>

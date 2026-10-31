@@ -468,7 +468,8 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                  jyoDragData:null,
                  jyoDragBoundMove:null,
                  jyoDragBoundEnd:null,
-                 lyricsPageTimes:[]
+                 lyricsPageTimes:[],
+                 jyoDragLastSeek:0
                 };
     },
     mounted() {
@@ -1034,6 +1035,7 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
                 return;
             }
             this.jyoDragData = { startY: event.clientY };
+            this.jyoDragLastSeek = 0;
             this.pointerMoved = false;
             if (!this.jyoDragBoundMove) {
                 this.jyoDragBoundMove = (e) => this.jyoDragMove(e);
@@ -1054,6 +1056,11 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
             if (Math.abs(event.clientY - this.jyoDragData.startY) > 8) {
                 this.pointerMoved = true;
                 this.jyoDragData.moved = true;
+                let now = Date.now();
+                if (now - this.jyoDragLastSeek > 200) {
+                    this.jyoDragLastSeek = now;
+                    this.seekJyoCenterLine();
+                }
             }
         },
         jyoDragEnd() {
@@ -1071,6 +1078,9 @@ var lmsNowPlaying = Vue.component("lms-now-playing", {
             }
         },
         seekJyoCenterLine() {
+            if (!this.playerStatus.current.canseek) {
+                return;
+            }
             let el = document.querySelector('.np-jyo-lyric');
             if (!el || !el.shadowRoot || !this.lyricsPageTimes.length) {
                 return;
